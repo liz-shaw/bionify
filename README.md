@@ -1,105 +1,89 @@
-# [Bionify - Read Faster!](https://bionify.xyz)
+# Bionify Chinese Reading Edition
 
-**LEGAL NOTICE:** To the _wonderful_ folks at Bionic Reading®, this is not a pirated version of your Bionic Reading® API, but rather a simple algorithm I developed in conjunction with other open source developers. It does NOT violate your precious Bionic Reading® copyrights.
+This repository is an independent improvement edition based on **Bionify**, an open-source Chrome extension originally created by **Vincent Wu**. The original project and its author deserve full credit:
 
-[![banner](src/icons/marquee.png)](https://chrome.google.com/webstore/detail/bionify-read-faster-with/gomhfpbcjfidhpffhecghfdieincgncc)
+- Original project: https://github.com/cveinnt/bionify
+- Original author: Vincent Wu
+- Original upstream website: https://bionify.xyz
 
-A simple chrome extension designed to help you read faster and more efficiently.
+This edition is not the official Chrome Web Store release. It adds Chinese reading support and several interface improvements while retaining the original project's core idea and license.
 
-Chinese, Japanese, and Korean text is supported. CJK text is segmented with the browser's built-in `Intl.Segmenter` when available, with a character-by-character fallback for older browsers.
+## Download This Edition
 
-The extension includes an optional draggable floating `B` button, separate Chinese settings, configurable highlight color and intensity, and snapshots for saving favorite reading modes.
+The Chrome Web Store link below is the original Bionify release, not this edition:
 
-Here's an example of Bionified text to demonstrate the speed!
+https://chrome.google.com/webstore/detail/bionify-read-faster-with/gomhfpbcjfidhpffhecghfdieincgncc
 
-[![read](read.png)](https://bionify.xyz)
+Download this edition from GitHub:
 
-(example text from jiffy reader)
+https://github.com/liz-shaw/bionify/archive/refs/heads/main.zip
 
-## Features
+Install it in Chrome:
 
-- Chinese text uses a separate rule from English text and is processed in a continuous character pattern.
-- Chinese punctuation and whitespace remain in place but do not count toward Gap or Highlight.
-- Highlight color can be enabled or disabled independently and saved in snapshots.
-- Snapshots save and restore the reading mode, including English and Chinese rules, styles, color value, and color-enabled state.
-- An optional draggable floating `B` button can appear automatically on supported pages. It shows gray when the current page is not rendered and green when Bionify is active.
-- Dynamically inserted or replaced text, including text updated by translation extensions such as Immersive Translate, is observed and reprocessed.
+1. Download and unzip `main.zip`.
+2. Open `chrome://extensions/`.
+3. Enable **Developer mode**.
+4. Click **Load unpacked**.
+5. Select the unzipped `bionify-main` folder.
 
-## Download
+After installation, click the extension's reload button whenever the code is updated. Refresh already-open webpages after reloading the extension.
 
-Bionify is available on the Chrome web store!
+## Updates
 
-Get it here: https://chrome.google.com/webstore/detail/bionify-read-faster-with/gomhfpbcjfidhpffhecghfdieincgncc
+Compared with the original Bionify project, this edition adds:
 
-Official website: https://bionify.xyz
-
-## Development
-
-First, clone the repository
-
-```
-git clone https://github.com/cveinnt/bionify.git
-```
-
-Then, follow [this instruction](https://developer.chrome.com/docs/extensions/mv3/getstarted/#unpacked) to develop unpacked extensions in Chrome.
+- Chinese text rendering with a separate Chinese configuration.
+- Chinese continuous Gap/Highlight patterns that ignore punctuation and whitespace when counting.
+- Dynamic re-rendering for text inserted or replaced by translation extensions such as Immersive Translate.
+- An optional floating `B` button that appears automatically on supported webpages.
+- A floating button state indicator: gray means not rendered, green means Bionify is active.
+- A floating button that stays attached to the right edge and can move vertically only.
+- Optional highlight color with an enable/disable switch.
+- Chinese highlight intensity levels: normal, bold, and bold with underline.
+- Snapshots for saving, applying, and deleting favorite reading modes.
+- Safer configuration migration so extension updates do not overwrite existing user settings.
 
 ## Algorithm Specification
 
-We allow you to customize highlight algorithm using a string similar to this:
+English and Chinese use separate configuration formats.
 
-```
+### English Algorithm
+
+Edit `Highlight Algorithm` in the popup. The default is:
+
+```text
 - 0 1 1 2 0.4
 ```
 
-Note that all numbers and characters are separated by a space. Here is what this string means:
+Values are separated by spaces:
 
-English text uses the `Highlight Algorithm` setting in the popup. Chinese text uses the separate `Chinese Settings` input in the same popup. Enter four space-separated values using the format `Gap Highlight GapOpacity Intensity`; for example, `5 2 0.8 2` leaves five Chinese characters unhighlighted, highlights the next two, applies `0.8` opacity to gap text, and uses intensity `2` for bold highlighting. Intensity `1` is normal, `2` is bold, and `3` is bold with underline.
+- The first value is `-` or `+`. `-` skips common short English words; `+` highlights all English words.
+- The next values define highlighted character counts for words of lengths 1, 2, 3, and so on.
+- The final value is the fraction of longer words to highlight. In the default, `0.4` means 40% rounded up.
 
-The floating `B` button stays attached to the right edge of the page and can be dragged vertically only.
+### Chinese Algorithm
 
-```
-- 0 1 1 2 0.4
-^
-```
+Edit `Chinese Settings` in the popup. The default is:
 
-The first character can be either `-` or `+`. If it is `-`, we don't highlight common english words (for example 'a', 'and', etc.) if it is '+' we highlight all words.
-
-```
-- 0 1 1 2 0.4
-  ^
+```text
+5 2 0.8 2
 ```
 
-This specifies the number of highlighted characters for words with length 1. For example 'a' and 'I'. Here we have specified that we don't want to highlight these characters.
+The four values are:
 
-```
-- 0 1 1 2 0.4
-    ^
-```
-
-This specifies the number of highlighted characters for words with length 2. For example 'an' and 'or'. Here we have specified that we highlight the first character of these words.
-
-```
-- 0 1 1 2 0.4
-      ^
+```text
+Gap Highlight GapOpacity Intensity
 ```
 
-Highlight the first character of 3 letter words.
+- `Gap`: number of Chinese characters left unhighlighted.
+- `Highlight`: number of Chinese characters highlighted after each gap.
+- `GapOpacity`: opacity applied to gap text, from `0` to `1`.
+- `Intensity`: `1` normal, `2` bold, `3` bold with underline.
 
-```
-- 0 1 1 2 0.4
-        ^
-```
+Chinese punctuation and whitespace remain in place but do not count toward `Gap` or `Highlight`.
 
-Highlight the first two character of 4 letter words.
+## Credits
 
-```
-- 0 1 1 2 0.4
-           ^
-```
+This edition is based on the original work by **Vincent Wu** and the Bionify project contributors. Please refer to the upstream repository for the original project history and licensing information:
 
-Unlike the previews entries, the last entry is a fractional value between 0 and 1 which specified which fraction of words that are not specified by previous rules must be highlighted.
-For example, here we highlight the first 40% characters of words with 5 or more characters.
-
-## Credit
-
-Bionify is a published fork of [fastread](https://github.com/ahrm/chrome-fastread).
+https://github.com/cveinnt/bionify
