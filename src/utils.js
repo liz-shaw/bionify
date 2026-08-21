@@ -290,6 +290,16 @@ export function bionify() {
         .replace(/&#x60;/g, "`");
     }
 
+    function normalizeText(string) {
+      var normalized = String(string);
+      for (var i = 0; i < 3; i++) {
+        var unescaped = htmlUnescape(normalized);
+        if (unescaped === normalized) break;
+        normalized = unescaped;
+      }
+      return normalized;
+    }
+
     function sanitize(unsafe_str) {
       return unsafe_str
         .replace(/&/g, "&amp;")
@@ -313,7 +323,7 @@ export function bionify() {
           if (node.parentElement?.closest("bionify")) return;
           var newNode = document.createElement("bionify");
           newNode.innerHTML = bionifyifyText(
-            sanitize(node.textContent),
+            sanitize(normalizeText(node.textContent)),
             forceShortText
           );
           if (forceShortText || node.textContent.length > 20) {
