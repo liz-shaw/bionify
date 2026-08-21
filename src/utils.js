@@ -142,10 +142,10 @@ export function bionify() {
 
       return (
         '<bionify class="bionify-highlight">' +
-        word.slice(0, numBold) +
+        escapeHtml(word.slice(0, numBold)) +
         "</bionify>" +
         '<bionify class="bionify-rest">' +
-        word.slice(numBold) +
+        escapeHtml(word.slice(numBold)) +
         "</bionify>"
       );
     }
@@ -195,15 +195,17 @@ export function bionify() {
       function flush() {
         if (!currentText) return;
         result += currentClass
-          ? '<bionify class="' + currentClass + '">' + currentText + "</bionify>"
-          : currentText;
+          ? '<bionify class="' + currentClass + '">' +
+            escapeHtml(currentText) +
+            "</bionify>"
+          : escapeHtml(currentText);
         currentText = "";
       }
 
       for (var character of text) {
         if (/[^\p{L}\p{N}]/u.test(character)) {
           flush();
-          result += character;
+          result += escapeHtml(character);
           continue;
         }
 
@@ -241,7 +243,7 @@ export function bionify() {
             .map((word) =>
               /[A-Za-z0-9]/.test(word)
                 ? bionifyifyWord(word, algorithm)
-                : word
+                : escapeHtml(word)
             )
             .join("");
           continue;
@@ -323,7 +325,7 @@ export function bionify() {
           if (node.parentElement?.closest("bionify")) return;
           var newNode = document.createElement("bionify");
           newNode.innerHTML = bionifyifyText(
-            sanitize(normalizeText(node.textContent)),
+            normalizeText(node.textContent),
             forceShortText
           );
           if (forceShortText || node.textContent.length > 20) {
