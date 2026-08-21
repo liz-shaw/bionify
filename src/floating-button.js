@@ -32,7 +32,15 @@
   }
 
   function addButton() {
-    if (document.getElementById(buttonId)) return;
+    const existingButton = document.getElementById(buttonId);
+    if (existingButton && existingButton.textContent === "B") {
+      existingButton.style.left = "auto";
+      existingButton.style.right = "10px";
+      existingButton.style.transform = "translateY(-50%)";
+      return;
+    }
+    existingButton?.remove();
+    document.getElementById(styleId)?.remove();
 
     const button = document.createElement("button");
     button.id = buttonId;
@@ -61,6 +69,7 @@
 
     button.addEventListener("pointermove", (event) => {
       if (!dragging) return;
+      event.preventDefault();
       const deltaY = event.clientY - startY;
       if (Math.abs(deltaY) > 3) moved = true;
       button.style.top = `${Math.max(0, Math.min(innerHeight - button.offsetHeight, startTop + deltaY))}px`;
@@ -84,7 +93,7 @@
     const style = document.createElement("style");
     style.id = styleId;
     style.textContent =
-      `#${buttonId} { position: fixed; right: 10px; top: 50%; transform: translateY(-50%); z-index: 2147483647; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: #555; color: #fff; font: 700 17px sans-serif; line-height: 34px; text-align: center; cursor: grab; box-shadow: 0 2px 8px rgba(0,0,0,.28); opacity: .88; } #${buttonId}.bionify-on { background: #188038; } #${buttonId}:hover { opacity: 1; }`;
+      `#${buttonId} { position: fixed; left: auto !important; right: 10px !important; top: 50%; transform: translateY(-50%); z-index: 2147483647; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: #555; color: #fff; font: 700 17px sans-serif; line-height: 34px; text-align: center; cursor: grab; touch-action: none; user-select: none; box-shadow: 0 2px 8px rgba(0,0,0,.28); opacity: .88; } #${buttonId}.bionify-on { background: #188038; } #${buttonId}:hover { opacity: 1; }`;
 
     (document.head || document.documentElement).appendChild(style);
     (document.body || document.documentElement).appendChild(button);
