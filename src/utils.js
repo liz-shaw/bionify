@@ -141,12 +141,12 @@ export function bionify() {
       }
 
       return (
-        '<bionify class="bionify-highlight">' +
+        '<span class="bionify-part bionify-highlight">' +
         escapeHtml(word.slice(0, numBold)) +
-        "</bionify>" +
-        '<bionify class="bionify-rest">' +
+        "</span>" +
+        '<span class="bionify-part bionify-rest">' +
         escapeHtml(word.slice(numBold)) +
-        "</bionify>"
+        "</span>"
       );
     }
 
@@ -195,9 +195,9 @@ export function bionify() {
       function flush() {
         if (!currentText) return;
         result += currentClass
-          ? '<bionify class="' + currentClass + '">' +
+          ? '<span class="bionify-part ' + currentClass + '">' +
             escapeHtml(currentText) +
-            "</bionify>"
+            "</span>"
           : escapeHtml(currentText);
         currentText = "";
       }
@@ -322,7 +322,7 @@ export function bionify() {
         return;
       if (node.childNodes == undefined || node.childNodes.length == 0) {
         if (node.textContent != undefined && node.tagName == undefined) {
-          if (node.parentElement?.closest("bionify")) return;
+          if (node.parentElement?.closest(".bionify-part")) return;
           var newNode = document.createElement("bionify");
           newNode.innerHTML = bionifyifyText(
             normalizeText(node.textContent),
@@ -353,10 +353,10 @@ export function bionify() {
             var mutationTarget = mutation.target.nodeType === 3
               ? mutation.target.parentElement
               : mutation.target;
-            var formattedRoot = mutationTarget?.closest?.("bionify");
+            var formattedRoot = mutationTarget?.closest?.(".bionify-part");
             if (formattedRoot) {
-              while (formattedRoot.parentElement?.closest("bionify")) {
-                formattedRoot = formattedRoot.parentElement.closest("bionify");
+              while (formattedRoot.parentElement?.closest(".bionify-part")) {
+                formattedRoot = formattedRoot.parentElement.closest(".bionify-part");
               }
               formattedRoots.add(formattedRoot);
             }
@@ -400,7 +400,7 @@ export function bionify() {
     }
 
     function clearBionifyFormatting() {
-      var formattedNodes = document.querySelectorAll("bionify");
+      var formattedNodes = document.querySelectorAll(".bionify-part");
       for (var formattedNode of formattedNodes) {
         formattedNode.replaceWith(document.createTextNode(formattedNode.textContent));
       }
