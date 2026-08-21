@@ -330,25 +330,14 @@ export function bionify() {
     function startContentObserver() {
       if (typeof MutationObserver === "undefined") return;
 
-      var pendingMutations = [];
-      var processTimer = null;
-
-      function processMutations() {
-        processTimer = null;
-        if (window.bionifyUpdatingTranslation || pendingMutations.length === 0) {
-          pendingMutations = [];
-          return;
-        }
-
-        var mutationsToProcess = pendingMutations;
-        pendingMutations = [];
+      var observer = new MutationObserver((mutations) => {
+        if (window.bionifyUpdatingTranslation) return;
         window.bionifyUpdatingTranslation = true;
         observer.disconnect();
-
         try {
           var formattedRoots = new Set();
           var addedNodes = [];
-          for (var mutation of mutationsToProcess) {
+          for (var mutation of mutations) {
             var mutationTarget = mutation.target.nodeType === 3
               ? mutation.target.parentElement
               : mutation.target;
@@ -375,20 +364,12 @@ export function bionify() {
           }
         } finally {
           window.bionifyUpdatingTranslation = false;
-          observer.takeRecords();
           observer.observe(document.body, {
             childList: true,
             characterData: true,
             subtree: true,
           });
         }
-      }
-
-      var observer = new MutationObserver((mutations) => {
-        if (window.bionifyUpdatingTranslation) return;
-        pendingMutations.push(...mutations);
-        clearTimeout(processTimer);
-        processTimer = setTimeout(processMutations, 300);
       });
 
       observer.observe(document.body, {
