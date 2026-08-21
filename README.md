@@ -6,6 +6,10 @@
 
 A simple chrome extension designed to help you read faster and more efficiently.
 
+Chinese, Japanese, and Korean text is supported. CJK text is segmented with the browser's built-in `Intl.Segmenter` when available, with a character-by-character fallback for older browsers.
+
+The extension includes an optional draggable floating `B` button, separate Chinese settings, configurable highlight color and intensity, and snapshots for saving favorite reading modes. The default Chinese setting is `5 2 0.8 2`.
+
 Here's an example of Bionified text to demonstrate the speed!
 
 [![read](read.png)](https://bionify.xyz)
@@ -28,7 +32,7 @@ First, clone the repository
 git clone https://github.com/cveinnt/bionify.git
 ```
 
-Thenm, follow [this instruction](https://developer.chrome.com/docs/extensions/mv3/getstarted/#unpacked) to develop unpacked extensions in Chrome.
+Then, follow [this instruction](https://developer.chrome.com/docs/extensions/mv3/getstarted/#unpacked) to develop unpacked extensions in Chrome.
 
 ## Algorithm Specification
 
@@ -39,6 +43,8 @@ We allow you to customize highlight algorithm using a string similar to this:
 ```
 
 Note that all numbers and characters are separated by a space. Here is what this string means:
+
+English text uses the `Highlight Algorithm` setting in the popup. Chinese text uses one `Chinese Settings` input with the format `Gap Highlight GapOpacity Intensity`, for example `6 2 0.9 3`. Intensity `1` is normal, `2` is bold, and `3` is bold with underline.
 
 ```
 - 0 1 1 2 0.4
