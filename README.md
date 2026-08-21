@@ -16,6 +16,26 @@ Here's an example of Bionified text to demonstrate the speed!
 
 (example text from jiffy reader)
 
+## Features
+
+- Chinese text uses a separate rule from English text and is processed in a continuous character pattern.
+- Chinese settings use the format `Gap Highlight GapOpacity Intensity`. For example, `5 2 0.8 2` leaves five Chinese characters unhighlighted, highlights the next two, applies `0.8` opacity to gap text, and uses intensity `2` for bold highlighting.
+- Chinese punctuation and whitespace remain in place but do not count toward Gap or Highlight.
+- Highlight color can be enabled or disabled independently and saved in snapshots.
+- Snapshots save and restore the reading mode, including English and Chinese rules, styles, color value, and color-enabled state.
+- An optional draggable floating `B` button can appear automatically on supported pages. It shows gray when the current page is not rendered and green when Bionify is active.
+- Dynamically inserted or replaced text, including text updated by translation extensions such as Immersive Translate, is observed and reprocessed.
+
+### Using Chinese Settings
+
+Enter four space-separated values in the `Chinese Settings` field:
+
+```text
+Gap Highlight GapOpacity Intensity
+```
+
+Intensity values are `1` for normal text, `2` for bold text, and `3` for bold underlined text. The floating button can be enabled or disabled with `Show floating button` in the popup.
+
 ## Download
 
 Bionify is available on the Chrome web store!
