@@ -47,31 +47,23 @@
 
     let dragging = false;
     let moved = false;
-    let startX = 0;
     let startY = 0;
-    let startLeft = 0;
     let startTop = 0;
 
     button.addEventListener("pointerdown", (event) => {
       dragging = true;
       moved = false;
-      startX = event.clientX;
       startY = event.clientY;
       const rect = button.getBoundingClientRect();
-      startLeft = rect.left;
       startTop = rect.top;
       button.setPointerCapture(event.pointerId);
     });
 
     button.addEventListener("pointermove", (event) => {
       if (!dragging) return;
-      const deltaX = event.clientX - startX;
       const deltaY = event.clientY - startY;
-      if (Math.abs(deltaX) + Math.abs(deltaY) > 3) moved = true;
-      button.style.left = `${Math.max(0, Math.min(innerWidth - button.offsetWidth, startLeft + deltaX))}px`;
+      if (Math.abs(deltaY) > 3) moved = true;
       button.style.top = `${Math.max(0, Math.min(innerHeight - button.offsetHeight, startTop + deltaY))}px`;
-      button.style.right = "auto";
-      button.style.transform = "none";
     });
 
     button.addEventListener("pointerup", (event) => {
