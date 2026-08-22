@@ -71,23 +71,42 @@ export function bionify() {
         var style = document.createElement("style");
         style.type = "text/css";
         style.id = "bionify-style-id";
-        style.innerHTML =
-          ".bionify-highlight {" +
+        var highlightStyle =
           data.highlightSheet +
           (data.highlightColorEnabled
             ? " color: " + (data.highlightColor || defaultHighlightColor) + ";"
-            : "") +
-          " } .bionify-rest {" +
-          data.restSheet +
-          " } .bionify-chinese-rest { opacity: " +
-          chineseSettings.gapOpacity +
-          "; } .bionify-chinese-highlight {" +
+            : "");
+        var rangeHighlightStyle = highlightStyle;
+        if (
+          !/color\s*:|background|text-decoration/i.test(rangeHighlightStyle)
+        ) {
+          rangeHighlightStyle += " color: " + defaultHighlightColor + ";";
+        }
+        var chineseHighlightStyle =
           (chineseSettings.intensity === 2 || chineseSettings.intensity === 3
             ? " font-weight: 600;"
             : " font-weight: normal;") +
           (chineseSettings.intensity === 3
             ? " text-decoration: underline;"
-            : "") +
+            : "");
+        style.innerHTML =
+          "::highlight(bionify-highlight) {" +
+          rangeHighlightStyle +
+          " } ::highlight(bionify-rest) {" +
+          data.restSheet +
+          " } ::highlight(bionify-chinese-rest) { opacity: " +
+          chineseSettings.gapOpacity +
+          "; } ::highlight(bionify-chinese-highlight) {" +
+          chineseHighlightStyle +
+          rangeHighlightStyle +
+          " } .bionify-highlight {" +
+          highlightStyle +
+          " } .bionify-rest {" +
+          data.restSheet +
+          " } .bionify-chinese-rest { opacity: " +
+          chineseSettings.gapOpacity +
+          "; } .bionify-chinese-highlight {" +
+          chineseHighlightStyle +
           "}";
         document.getElementsByTagName("head")[0].appendChild(style);
         }
@@ -141,10 +160,10 @@ export function bionify() {
       }
 
       return (
-        '<span class="bionify-part bionify-highlight">' +
+        '<span class="bionify-part bionify-highlight" translate="no">' +
         escapeHtml(word.slice(0, numBold)) +
         "</span>" +
-        '<span class="bionify-part bionify-rest">' +
+        '<span class="bionify-part bionify-rest" translate="no">' +
         escapeHtml(word.slice(numBold)) +
         "</span>"
       );
@@ -195,7 +214,7 @@ export function bionify() {
       function flush() {
         if (!currentText) return;
         result += currentClass
-          ? '<span class="bionify-part ' + currentClass + '">' +
+          ? '<span class="bionify-part ' + currentClass + '" translate="no">' +
             escapeHtml(currentText) +
             "</span>"
           : escapeHtml(currentText);
@@ -312,6 +331,143 @@ export function bionify() {
       // .replace(/\//g, "&#x2F;");
     }
 
+    function getBionifyRoot(node) {
+      var element = node?.nodeType === 3 ? node.parentElement : node;
+      return element?.closest?.("[data-bionify-root='true']");
+    }
+
+    function supportsRangeHighlights() {
+      return (
+        typeof Highlight !== "undefined" &&
+        typeof CSS !== "undefined" &&
+        CSS.highlights
+      );
+    }
+
+    function clearRangeHighlights() {
+      if (!supportsRangeHighlights()) return;
+      CSS.highlights.delete("bionify-highlight");
+      CSS.highlights.delete("bionify-rest");
+      CSS.highlights.delete("bionify-chinese-highlight");
+      CSS.highlights.delete("bionify-chinese-rest");
+    }
+
+    function isSkippableNode(node) {
+      var element = node.nodeType === 3 ? node.parentElement : node;
+      return (
+        !element ||
+        element.closest?.(
+          "script, style, textarea, input, select, option, code, pre, " +
+          "[contenteditable='true'], .bionify-control, [data-bionify-root='true']"
+        )
+      );
+    }
+
+    function getWordHighlightLength(word, wordAlgorithm) {
+      function isCommon(word) {
+        return commonWords.indexOf(word.toLowerCase()) != -1;
+      }
+
+      var index = word.length - 1;
+
+      if (word.length <= 3 && wordAlgorithm.exclude && isCommon(word)) {
+        return 0;
+      }
+
+      if (index < wordAlgorithm.sizes.length) {
+        return Number(wordAlgorithm.sizes[index]) || 0;
+      }
+
+      return Math.ceil(word.length * wordAlgorithm.restRatio);
+    }
+
+    function addRange(highlights, node, start, end, type) {
+      if (end <= start) return;
+      var range = new Range();
+      range.setStart(node, start);
+      range.setEnd(node, end);
+      highlights[type].add(range);
+    }
+
+    function collectTextHighlights(node, highlights, forceShortText = false) {
+      var text = String(node.textContent);
+      var cjkPattern = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/;
+      if (!forceShortText && text.length < 10 && !cjkPattern.test(text)) return;
+
+      var tokenPattern = /[A-Za-z0-9]+|[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]+/gu;
+      var match;
+      while ((match = tokenPattern.exec(text)) !== null) {
+        var token = match[0];
+        var start = match.index;
+
+        if (/^[A-Za-z0-9]+$/.test(token)) {
+          var highlightLength = Math.min(
+            token.length,
+            getWordHighlightLength(token, algorithm)
+          );
+          if (highlightLength > 0) {
+            addRange(highlights, node, start, start + highlightLength, "highlight");
+          }
+          if (highlightLength < token.length) {
+            addRange(highlights, node, start + highlightLength, start + token.length, "rest");
+          }
+          continue;
+        }
+
+        var gapLength = chineseRule[0];
+        var highlightLengthChinese = chineseRule[1];
+        var cycleLength = gapLength + highlightLengthChinese;
+        var countedCharacters = 0;
+        var currentType = "";
+        var currentStart = start;
+        var offset = start;
+
+        for (var character of token) {
+          var nextOffset = offset + character.length;
+          var nextType = countedCharacters % cycleLength < gapLength
+            ? "chineseRest"
+            : "chineseHighlight";
+          if (currentType && nextType !== currentType) {
+            addRange(highlights, node, currentStart, offset, currentType);
+            currentStart = offset;
+          }
+          currentType = nextType;
+          countedCharacters++;
+          offset = nextOffset;
+        }
+
+        if (currentType) addRange(highlights, node, currentStart, offset, currentType);
+      }
+    }
+
+    function bionifyWithRangeHighlights(root) {
+      clearRangeHighlights();
+      var highlights = {
+        highlight: new Highlight(),
+        rest: new Highlight(),
+        chineseHighlight: new Highlight(),
+        chineseRest: new Highlight(),
+      };
+      var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          if (!node.textContent.trim() || isSkippableNode(node)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
+
+      var node;
+      while ((node = walker.nextNode())) {
+        collectTextHighlights(node, highlights);
+      }
+
+      CSS.highlights.set("bionify-highlight", highlights.highlight);
+      CSS.highlights.set("bionify-rest", highlights.rest);
+      CSS.highlights.set("bionify-chinese-highlight", highlights.chineseHighlight);
+      CSS.highlights.set("bionify-chinese-rest", highlights.chineseRest);
+    }
+
     function bionifyifyNode(node, forceShortText = false) {
       if (
         node.tagName === "SCRIPT" ||
@@ -322,8 +478,11 @@ export function bionify() {
         return;
       if (node.childNodes == undefined || node.childNodes.length == 0) {
         if (node.textContent != undefined && node.tagName == undefined) {
-          if (node.parentElement?.closest(".bionify-part")) return;
-          var newNode = document.createElement("bionify");
+          if (node.parentElement?.closest(".bionify-part") || getBionifyRoot(node)) return;
+          var newNode = document.createElement("span");
+          newNode.dataset.bionifyRoot = "true";
+          newNode.translate = false;
+          newNode.setAttribute("translate", "no");
           newNode.innerHTML = bionifyifyText(
             normalizeText(node.textContent),
             forceShortText
@@ -339,59 +498,6 @@ export function bionify() {
       }
     }
 
-    function startContentObserver() {
-      if (typeof MutationObserver === "undefined") return;
-
-      var observer = new MutationObserver((mutations) => {
-        if (window.bionifyUpdatingTranslation) return;
-        window.bionifyUpdatingTranslation = true;
-        observer.disconnect();
-        try {
-          var formattedRoots = new Set();
-          var addedNodes = [];
-          for (var mutation of mutations) {
-            var mutationTarget = mutation.target.nodeType === 3
-              ? mutation.target.parentElement
-              : mutation.target;
-            var formattedRoot = mutationTarget?.closest?.(".bionify-part");
-            if (formattedRoot) {
-              while (formattedRoot.parentElement?.closest(".bionify-part")) {
-                formattedRoot = formattedRoot.parentElement.closest(".bionify-part");
-              }
-              formattedRoots.add(formattedRoot);
-            }
-            for (var addedNode of mutation.addedNodes) {
-              addedNodes.push(addedNode);
-            }
-          }
-
-          for (var root of formattedRoots) {
-            if (!root.isConnected) continue;
-            var plainText = document.createTextNode(root.textContent);
-            root.replaceWith(plainText);
-            bionifyifyNode(plainText, true);
-          }
-          for (var addedNode of addedNodes) {
-            if (addedNode.isConnected) bionifyifyNode(addedNode, true);
-          }
-        } finally {
-          window.bionifyUpdatingTranslation = false;
-          observer.observe(document.body, {
-            childList: true,
-            characterData: true,
-            subtree: true,
-          });
-        }
-      });
-
-      observer.observe(document.body, {
-        childList: true,
-        characterData: true,
-        subtree: true,
-      });
-      window.bionifyContentObserver = observer;
-    }
-
     function stopContentObserver() {
       if (window.bionifyContentObserver) {
         window.bionifyContentObserver.disconnect();
@@ -400,6 +506,12 @@ export function bionify() {
     }
 
     function clearBionifyFormatting() {
+      clearRangeHighlights();
+      var rootNodes = document.querySelectorAll("[data-bionify-root='true'], bionify");
+      for (var rootNode of rootNodes) {
+        rootNode.replaceWith(document.createTextNode(rootNode.textContent));
+      }
+
       var formattedNodes = document.querySelectorAll(".bionify-part");
       for (var formattedNode of formattedNodes) {
         formattedNode.replaceWith(document.createTextNode(formattedNode.textContent));
@@ -417,10 +529,15 @@ export function bionify() {
         stopContentObserver();
         clearBionifyFormatting();
         deleteStyleSheet();
+      } else {
+        clearBionifyFormatting();
       }
       createStylesheet();
-      bionifyifyNode(document.body);
-      startContentObserver();
+      if (supportsRangeHighlights()) {
+        bionifyWithRangeHighlights(document.body);
+      } else {
+        bionifyifyNode(document.body);
+      }
     }
   });
 }

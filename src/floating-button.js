@@ -19,6 +19,30 @@
     updateButtonState(document.getElementById("bionify-style-id") !== null);
   }
 
+  function sendToggleMessage() {
+    try {
+      if (
+        typeof chrome === "undefined" ||
+        !chrome.runtime ||
+        typeof chrome.runtime.sendMessage !== "function"
+      ) {
+        return;
+      }
+      const result = chrome.runtime.sendMessage({ type: "toggle-bionify" });
+      result?.catch?.(() => {});
+    } catch {
+      // The extension context can disappear while an already-injected button remains.
+    }
+  }
+
+  function hasChromeStorage() {
+    return (
+      typeof chrome !== "undefined" &&
+      chrome.storage &&
+      chrome.storage.sync
+    );
+  }
+
   function observeRenderState() {
     if (window.bionifyFloatingObserver) return;
     const observer = new MutationObserver(() => {
@@ -86,7 +110,7 @@
         moved = false;
         return;
       }
-      chrome.runtime.sendMessage({ type: "toggle-bionify" });
+      sendToggleMessage();
       setTimeout(syncButtonState, 350);
     });
 
@@ -97,6 +121,13 @@
 
     (document.head || document.documentElement).appendChild(style);
     (document.body || document.documentElement).appendChild(button);
+  }
+
+  if (!hasChromeStorage()) {
+    addButton();
+    syncButtonState();
+    observeRenderState();
+    return;
   }
 
   chrome.storage.sync.get(["floatingButtonEnabled"], (data) => {
