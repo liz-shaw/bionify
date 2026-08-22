@@ -1,10 +1,11 @@
-export let defaultHighlightSheet = "font-weight: 600;";
+export let defaultHighlightSheet = "font-weight: 400;";
 export let defaultRestSheet = "opacity: 0.9;";
-export let defaultHighlightColor = "#c0392b";
+export let defaultHighlightColor = "#11b500";
 export let defaultAlgorithm = "- 0 1 1 2 0.4";
 export let defaultChineseGap = 5;
 export let defaultChineseHighlight = 2;
-export let defaultChineseAlgorithm = "5 2 0.8 2";
+export let defaultChineseBoldWeight = 0.45;
+export let defaultChineseAlgorithm = "5 2 0.8 0.2 2";
 export let defaultChineseGapOpacity = 0.8;
 export let defaultChineseHighlightIntensity = "medium";
 export let defaultFloatingButtonEnabled = true;
@@ -57,14 +58,13 @@ export function bionify() {
     var chineseSettings = parseChineseSettings(data.chineseAlgorithm, data);
     var chineseRule = [chineseSettings.gap, chineseSettings.highlight];
 
-    function createStylesheet() {
+    function createStylesheet(onReady) {
       chrome.storage.sync.get(
         [
           "highlightSheet",
           "restSheet",
           "highlightColor",
           "highlightColorEnabled",
-          "chineseGapOpacity",
           "chineseHighlightIntensity",
         ],
         function (data) {
@@ -77,6 +77,10 @@ export function bionify() {
             ? " color: " + (data.highlightColor || defaultHighlightColor) + ";"
             : "");
         var rangeHighlightStyle = highlightStyle;
+        if (/font-weight\s*:\s*(bold|[5-9]00|[6-9]00)/i.test(rangeHighlightStyle)) {
+          rangeHighlightStyle +=
+            " text-shadow: 0.035em 0 currentColor, -0.035em 0 currentColor;";
+        }
         if (
           !/color\s*:|background|text-decoration/i.test(rangeHighlightStyle)
         ) {
@@ -84,8 +88,31 @@ export function bionify() {
         }
         var chineseHighlightStyle =
           (chineseSettings.intensity === 2 || chineseSettings.intensity === 3
-            ? " font-weight: 600;"
+            ? " font-weight: " +
+              Math.round(400 + chineseSettings.boldWeight * 500) +
+              ";"
             : " font-weight: normal;") +
+          (chineseSettings.intensity === 3
+            ? " text-decoration: underline;"
+            : "");
+        var rangeChineseBaseStyle = highlightStyle.replace(
+          /font-weight\s*:[^;]+;?/gi,
+          ""
+        );
+        if (
+          !/color\s*:|background|text-decoration/i.test(rangeChineseBaseStyle)
+        ) {
+          rangeChineseBaseStyle += " color: " + defaultHighlightColor + ";";
+        }
+        var rangeChineseHighlightStyle =
+          rangeChineseBaseStyle +
+          (chineseSettings.intensity === 2 || chineseSettings.intensity === 3
+            ? " text-shadow: " +
+              (chineseSettings.boldWeight * 0.08).toFixed(3) +
+              "em 0 currentColor, -" +
+              (chineseSettings.boldWeight * 0.08).toFixed(3) +
+              "em 0 currentColor;"
+            : "") +
           (chineseSettings.intensity === 3
             ? " text-decoration: underline;"
             : "");
@@ -97,8 +124,7 @@ export function bionify() {
           " } ::highlight(bionify-chinese-rest) { opacity: " +
           chineseSettings.gapOpacity +
           "; } ::highlight(bionify-chinese-highlight) {" +
-          chineseHighlightStyle +
-          rangeHighlightStyle +
+          rangeChineseHighlightStyle +
           " } .bionify-highlight {" +
           highlightStyle +
           " } .bionify-rest {" +
@@ -108,14 +134,16 @@ export function bionify() {
           "; } .bionify-chinese-highlight {" +
           chineseHighlightStyle +
           "}";
+        deleteStyleSheet();
         document.getElementsByTagName("head")[0].appendChild(style);
+        if (onReady) onReady();
         }
       );
     }
 
     function deleteStyleSheet() {
-      var sheet = document.getElementById("bionify-style-id");
-      sheet.remove();
+      var sheets = document.querySelectorAll("#bionify-style-id");
+      for (var sheet of sheets) sheet.remove();
     }
 
     function hasStyleSheet() {
@@ -174,11 +202,21 @@ export function bionify() {
         .trim()
         .split(/\s+/)
         .map(Number);
-      if (numbers.length !== 4) {
+      if (numbers.length === 4) {
+        numbers = [
+          numbers[0],
+          numbers[1],
+          numbers[2],
+          defaultChineseBoldWeight,
+          numbers[3],
+        ];
+      }
+      if (numbers.length !== 5) {
         numbers = [
           Number(legacyData.chineseGap),
           Number(legacyData.chineseHighlight),
           Number(legacyData.chineseGapOpacity),
+          defaultChineseBoldWeight,
           legacyData.chineseHighlightIntensity === "high"
             ? 3
             : legacyData.chineseHighlightIntensity === "low"
@@ -190,15 +228,23 @@ export function bionify() {
         !Number.isInteger(numbers[0]) || numbers[0] < 0 ||
         !Number.isInteger(numbers[1]) || numbers[1] <= 0 ||
         !Number.isFinite(numbers[2]) || numbers[2] < 0 || numbers[2] > 1 ||
-        !Number.isInteger(numbers[3]) || numbers[3] < 1 || numbers[3] > 3
+        !Number.isFinite(numbers[3]) || numbers[3] < 0 || numbers[3] > 1 ||
+        !Number.isInteger(numbers[4]) || numbers[4] < 1 || numbers[4] > 3
       ) {
-        numbers = [defaultChineseGap, defaultChineseHighlight, defaultChineseGapOpacity, 2];
+        numbers = [
+          defaultChineseGap,
+          defaultChineseHighlight,
+          defaultChineseGapOpacity,
+          defaultChineseBoldWeight,
+          2,
+        ];
       }
       return {
         gap: numbers[0],
         highlight: numbers[1],
         gapOpacity: numbers[2],
-        intensity: numbers[3],
+        boldWeight: numbers[3],
+        intensity: numbers[4],
       };
     }
 
@@ -344,22 +390,53 @@ export function bionify() {
       );
     }
 
+    function nextRangeRenderToken() {
+      window.bionifyRangeRenderToken = (window.bionifyRangeRenderToken || 0) + 1;
+      return window.bionifyRangeRenderToken;
+    }
+
     function clearRangeHighlights() {
       if (!supportsRangeHighlights()) return;
+      nextRangeRenderToken();
       CSS.highlights.delete("bionify-highlight");
       CSS.highlights.delete("bionify-rest");
       CSS.highlights.delete("bionify-chinese-highlight");
       CSS.highlights.delete("bionify-chinese-rest");
     }
 
+    function scheduleIdleWork(callback) {
+      if (typeof requestIdleCallback === "function") {
+        requestIdleCallback(callback, { timeout: 120 });
+        return;
+      }
+      setTimeout(() => {
+        callback({
+          timeRemaining() {
+            return 12;
+          },
+        });
+      }, 0);
+    }
+
     function isSkippableNode(node) {
       var element = node.nodeType === 3 ? node.parentElement : node;
-      return (
-        !element ||
+      if (!element) return true;
+
+      if (
         element.closest?.(
-          "script, style, textarea, input, select, option, code, pre, " +
+          "script, style, textarea, input, select, option, code, pre, svg, " +
+          "canvas, noscript, iframe, object, [hidden], [aria-hidden='true'], " +
           "[contenteditable='true'], .bionify-control, [data-bionify-root='true']"
         )
+      ) {
+        return true;
+      }
+
+      var style = getComputedStyle(element);
+      return (
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.contentVisibility === "hidden"
       );
     }
 
@@ -441,13 +518,20 @@ export function bionify() {
     }
 
     function bionifyWithRangeHighlights(root) {
+      stopContentObserver();
       clearRangeHighlights();
+      var renderToken = nextRangeRenderToken();
       var highlights = {
         highlight: new Highlight(),
         rest: new Highlight(),
         chineseHighlight: new Highlight(),
         chineseRest: new Highlight(),
       };
+      CSS.highlights.set("bionify-highlight", highlights.highlight);
+      CSS.highlights.set("bionify-rest", highlights.rest);
+      CSS.highlights.set("bionify-chinese-highlight", highlights.chineseHighlight);
+      CSS.highlights.set("bionify-chinese-rest", highlights.chineseRest);
+
       var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
         acceptNode(node) {
           if (!node.textContent.trim() || isSkippableNode(node)) {
@@ -457,15 +541,27 @@ export function bionify() {
         },
       });
 
-      var node;
-      while ((node = walker.nextNode())) {
-        collectTextHighlights(node, highlights);
+      function processChunk(deadline) {
+        if (window.bionifyRangeRenderToken !== renderToken || !hasStyleSheet()) return;
+
+        var node;
+        var processed = 0;
+        while (
+          (node = walker.nextNode()) &&
+          processed < 250 &&
+          deadline.timeRemaining() > 3
+        ) {
+          collectTextHighlights(node, highlights);
+          processed++;
+        }
+
+        if (node) {
+          collectTextHighlights(node, highlights);
+          scheduleIdleWork(processChunk);
+        }
       }
 
-      CSS.highlights.set("bionify-highlight", highlights.highlight);
-      CSS.highlights.set("bionify-rest", highlights.rest);
-      CSS.highlights.set("bionify-chinese-highlight", highlights.chineseHighlight);
-      CSS.highlights.set("bionify-chinese-rest", highlights.chineseRest);
+      scheduleIdleWork(processChunk);
     }
 
     function bionifyifyNode(node, forceShortText = false) {
@@ -503,6 +599,22 @@ export function bionify() {
         window.bionifyContentObserver.disconnect();
         delete window.bionifyContentObserver;
       }
+      if (window.bionifyRangeObserver) {
+        window.bionifyRangeObserver.disconnect();
+        delete window.bionifyRangeObserver;
+      }
+      if (window.bionifyRangeObserverTimer) {
+        clearTimeout(window.bionifyRangeObserverTimer);
+        delete window.bionifyRangeObserverTimer;
+      }
+      if (window.bionifyRangeObserverScanTimer) {
+        clearTimeout(window.bionifyRangeObserverScanTimer);
+        delete window.bionifyRangeObserverScanTimer;
+      }
+      if (window.bionifyRangeObserverCleanup) {
+        window.bionifyRangeObserverCleanup();
+        delete window.bionifyRangeObserverCleanup;
+      }
     }
 
     function clearBionifyFormatting() {
@@ -532,12 +644,13 @@ export function bionify() {
       } else {
         clearBionifyFormatting();
       }
-      createStylesheet();
-      if (supportsRangeHighlights()) {
-        bionifyWithRangeHighlights(document.body);
-      } else {
-        bionifyifyNode(document.body);
-      }
+      createStylesheet(() => {
+        if (supportsRangeHighlights()) {
+          bionifyWithRangeHighlights(document.body);
+        } else {
+          bionifyifyNode(document.body);
+        }
+      });
     }
   });
 }

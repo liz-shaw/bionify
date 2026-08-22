@@ -34,14 +34,23 @@ Compared with the original Bionify project, this edition adds:
 
 - Chinese text rendering with a separate Chinese configuration.
 - Chinese continuous Gap/Highlight patterns that ignore punctuation and whitespace when counting.
-- Dynamic re-rendering for text inserted or replaced by translation extensions such as Immersive Translate.
+- Non-destructive range highlighting on supported Chrome versions, so text nodes are not rewritten during normal rendering.
+- Incremental highlighting for text inserted later by translation extensions such as Immersive Translate.
 - An optional floating `B` button that appears automatically on supported webpages.
 - A floating button state indicator: gray means not rendered, green means Bionify is active.
 - A floating button that stays attached to the right edge and can move vertically only.
 - Optional highlight color with an enable/disable switch.
-- Chinese highlight intensity levels: normal, bold, and bold with underline.
+- Chinese gap opacity, bold weight, and intensity levels: normal, bold, and bold with underline.
 - Snapshots for saving, applying, and deleting favorite reading modes.
 - Safer configuration migration so extension updates do not overwrite existing user settings.
+
+## Rendering and Translation Compatibility
+
+On browsers that support the CSS Custom Highlight API, this edition renders Bionify marks with text ranges instead of replacing original text nodes with nested spans. This keeps the page DOM readable for translation extensions and avoids corrupting bilingual output.
+
+When new text is inserted after Bionify is enabled, for example when Immersive Translate adds translated paragraphs while scrolling, the extension incrementally adds ranges for the new text. Rendering is processed in small idle-time chunks to reduce page freezes on long articles or comment threads.
+
+If CSS Custom Highlight is not available, the extension falls back to the older span-based rendering mode.
 
 ## Algorithm Specification
 
@@ -66,21 +75,24 @@ Values are separated by spaces:
 Edit `Chinese Settings` in the popup. The default is:
 
 ```text
-5 2 0.8 2
+5 2 0.8 0.2 2
 ```
 
-The four values are:
+The five values are:
 
 ```text
-Gap Highlight GapOpacity Intensity
+Gap Highlight GapOpacity BoldWeight Intensity
 ```
 
 - `Gap`: number of Chinese characters left unhighlighted.
 - `Highlight`: number of Chinese characters highlighted after each gap.
 - `GapOpacity`: opacity applied to gap text, from `0` to `1`.
+- `BoldWeight`: bold weight for highlighted Chinese text, from `0` to `1`. `0` is lightest and `1` is strongest.
 - `Intensity`: `1` normal, `2` bold, `3` bold with underline.
 
 Chinese punctuation and whitespace remain in place but do not count toward `Gap` or `Highlight`.
+
+Older four-value Chinese settings such as `5 2 0.8 2` are still accepted. They are interpreted as `Gap Highlight GapOpacity Intensity` and automatically use the default `BoldWeight` of `0.2`.
 
 ## Credits
 

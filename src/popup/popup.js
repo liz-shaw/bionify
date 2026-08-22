@@ -254,7 +254,7 @@ restoreButton.addEventListener("click", async () => {
     highlightSheet: defaultHighlightSheet,
     restSheet: defaultRestSheet,
     highlightColor: defaultHighlightColor,
-    highlightColorEnabled: false,
+    highlightColorEnabled: true,
     algorithm: defaultAlgorithm,
     chineseAlgorithm: defaultChineseAlgorithm,
     floatingButtonEnabled: defaultFloatingButtonEnabled,
@@ -262,7 +262,7 @@ restoreButton.addEventListener("click", async () => {
   await chrome.storage.sync.set(defaults);
   highlightSheetInput.value = defaultHighlightSheet;
   highlightColorInput.value = defaultHighlightColor;
-  highlightColorEnabledInput.checked = false;
+  highlightColorEnabledInput.checked = true;
   restSheetInput.value = defaultRestSheet;
   algorithmInput.value = defaultAlgorithm;
   chineseSettingsInput.value = defaultChineseAlgorithm;

@@ -21,17 +21,23 @@
 
   function sendToggleMessage() {
     try {
+      const button = document.getElementById(buttonId);
       if (
         typeof chrome === "undefined" ||
         !chrome.runtime ||
         typeof chrome.runtime.sendMessage !== "function"
       ) {
+        if (button) button.title = "Bionify: reload this page after reloading the extension";
         return;
       }
       const result = chrome.runtime.sendMessage({ type: "toggle-bionify" });
-      result?.catch?.(() => {});
+      result?.catch?.(() => {
+        if (button) button.title = "Bionify: reload this page after reloading the extension";
+      });
     } catch {
       // The extension context can disappear while an already-injected button remains.
+      const button = document.getElementById(buttonId);
+      if (button) button.title = "Bionify: reload this page after reloading the extension";
     }
   }
 
@@ -57,12 +63,6 @@
 
   function addButton() {
     const existingButton = document.getElementById(buttonId);
-    if (existingButton && existingButton.textContent === "B") {
-      existingButton.style.left = "auto";
-      existingButton.style.right = "10px";
-      existingButton.style.transform = "translateY(-50%)";
-      return;
-    }
     existingButton?.remove();
     document.getElementById(styleId)?.remove();
 
